@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>鍵盤特訓班 - 互動教學</title>
+    <!-- 引入 Tailwind CSS (樣式庫) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 React 核心 -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- 引入 Babel (讓瀏覽器看得懂 React 語法) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        body {
+            font-family: "Microsoft JhengHei", "Heiti TC", sans-serif;
+            overflow-x: hidden;
+        }
+        .select-none {
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        /* Modal 動畫 */
+        .modal-enter { opacity: 0; transform: scale(0.9); }
+        .modal-enter-active { opacity: 1; transform: scale(1); transition: opacity 300ms, transform 300ms; }
+    </style>
+</head>
+<body class="bg-slate-200">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // ==========================================
+        // 設定區：請在此處填入您的 Google Apps Script 網址
+        // ==========================================
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwhiOK_JvGIjnzaOe03GDy0WXXRVmkG5DYbfojvdfM4oyfh739L4ovLqfkl8KncIfkn/exec"; 
+        // 例如: "https://script.google.com/macros/s/AKfycbx.../exec"
+        // 若留空，按鈕按下後會跳出提示請老師設定。
+
+        const { useState, useEffect, useCallback, useRef } = React;
+
+        // --- 內建圖示 ---
+        const Monitor = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>);
+        const Hash = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><line x1="4" x2="20" y1="9" y2="9"/><line x1="4" x2="20" y1="15" y2="15"/><line x1="10" x2="8" y1="3" y2="21"/><line x1="16" x2="14" y1="3" y2="21"/></svg>);
+        const CheckCircle = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>);
+        const XCircle = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>);
+        const ArrowUp = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>);
+        const KeyboardIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><rect width="20" height="16" x="2" y="4" rx="2" ry="2"/><path d="M6 8h.001"/><path d="M10 8h.001"/><path d="M14 8h.001"/><path d="M18 8h.001"/><path d="M6 12h.001"/><path d="M10 12h.001"/><path d="M14 12h.001"/><path d="M18 12h.001"/><path d="M7 16h10"/></svg>);
+        const RotateCcw = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>);
+        const Trophy = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>);
+        const Send = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><line x1="22" x2="11" y1="2" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>);
+        const UploadCloud = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="m16 16-4-4-4 4"/></svg>);
+        const Loader = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>);
+        const BookOpen = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>);
+        const Timer = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/></svg>);
+
+        /* --- 鍵盤資料結構 --- */
+        const KEYBOARD_LAYOUT = {
+            main: [
+                [{ code: 'Backquote', label: '`', labelShift: '~' }, { code: 'Digit1', label: '1', labelShift: '!' }, { code: 'Digit2', label: '2', labelShift: '@' }, { code: 'Digit3', label: '3', labelShift: '#' }, { code: 'Digit4', label: '4', labelShift: '$' }, { code: 'Digit5', label: '5', labelShift: '%' }, { code: 'Digit6', label: '6', labelShift: '^' }, { code: 'Digit7', label: '7', labelShift: '&' }, { code: 'Digit8', label: '8', labelShift: '*' }, { code: 'Digit9', label: '9', labelShift: '(' }, { code: 'Digit0', label: '0', labelShift: ')' }, { code: 'Minus', label: '-', labelShift: '_' }, { code: 'Equal', label: '=', labelShift: '+' }, { code: 'Backspace', label: '←', width: 'w-16' }],
+                [{ code: 'Tab', label: 'Tab', width: 'w-16' }, { code: 'KeyQ', label: 'Q' }, { code: 'KeyW', label: 'W' }, { code: 'KeyE', label: 'E' }, { code: 'KeyR', label: 'R' }, { code: 'KeyT', label: 'T' }, { code: 'KeyY', label: 'Y' }, { code: 'KeyU', label: 'U' }, { code: 'KeyI', label: 'I' }, { code: 'KeyO', label: 'O' }, { code: 'KeyP', label: 'P' }, { code: 'BracketLeft', label: '[', labelShift: '{' }, { code: 'BracketRight', label: ']', labelShift: '}' }, { code: 'Backslash', label: '\\', labelShift: '|', width: 'w-12' }],
+                [{ code: 'CapsLock', label: 'Caps', width: 'w-20' }, { code: 'KeyA', label: 'A' }, { code: 'KeyS', label: 'S' }, { code: 'KeyD', label: 'D' }, { code: 'KeyF', label: 'F' }, { code: 'KeyG', label: 'G' }, { code: 'KeyH', label: 'H' }, { code: 'KeyJ', label: 'J' }, { code: 'KeyK', label: 'K' }, { code: 'KeyL', label: 'L' }, { code: 'Semicolon', label: ';', labelShift: ':' }, { code: 'Quote', label: "'", labelShift: '"' }, { code: 'Enter', label: 'Enter', width: 'flex-1' }],
+                [{ code: 'ShiftLeft', label: 'Shift', width: 'w-24' }, { code: 'KeyZ', label: 'Z' }, { code: 'KeyX', label: 'X' }, { code: 'KeyC', label: 'C' }, { code: 'KeyV', label: 'V' }, { code: 'KeyB', label: 'B' }, { code: 'KeyN', label: 'N' }, { code: 'KeyM', label: 'M' }, { code: 'Comma', label: ',', labelShift: '<' }, { code: 'Period', label: '.', labelShift: '>' }, { code: 'Slash', label: '/', labelShift: '?' }, { code: 'ShiftRight', label: 'Shift', width: 'flex-1' }],
+                [{ code: 'ControlLeft', label: 'Ctrl', width: 'w-16' }, { code: 'MetaLeft', label: 'Win', width: 'w-12' }, { code: 'AltLeft', label: 'Alt', width: 'w-12' }, { code: 'Space', label: 'Space', width: 'flex-1' }, { code: 'AltRight', label: 'Alt', width: 'w-12' }, { code: 'ControlRight', label: 'Ctrl', width: 'w-16' }]
+            ],
+            numpad: [
+                [{ code: 'NumLock', label: 'Num' }, { code: 'NumpadDivide', label: '/' }, { code: 'NumpadMultiply', label: '*' }, { code: 'NumpadSubtract', label: '-' }],
+                [{ code: 'Numpad7', label: '7' }, { code: 'Numpad8', label: '8' }, { code: 'Numpad9', label: '9' }, { code: 'NumpadAdd', label: '+', height: 'h-full row-span-2' }],
+                [{ code: 'Numpad4', label: '4' }, { code: 'Numpad5', label: '5' }, { code: 'Numpad6', label: '6' }],
+                [{ code: 'Numpad1', label: '1' }, { code: 'Numpad2', label: '2' }, { code: 'Numpad3', label: '3' }, { code: 'NumpadEnter', label: 'Ent', height: 'h-full row-span-2' }],
+                [{ code: 'Numpad0', label: '0', width: 'col-span-2' }, { code: 'NumpadDecimal', label: '.' }]
+            ]
+        };
+
+        const FINGER_BY_CODE = {
+            Backquote: '左小指', Digit1: '左小指', Digit2: '左無名指', Digit3: '左中指', Digit4: '左食指', Digit5: '左食指',
+            Digit6: '右食指', Digit7: '右食指', Digit8: '右中指', Digit9: '右無名指', Digit0: '右小指', Minus: '右小指', Equal: '右小指',
+            KeyQ: '左小指', KeyA: '左小指', KeyZ: '左小指', KeyW: '左無名指', KeyS: '左無名指', KeyX: '左無名指',
+            KeyE: '左中指', KeyD: '左中指', KeyC: '左中指', KeyR: '左食指', KeyF: '左食指', KeyV: '左食指', KeyT: '左食指', KeyG: '左食指', KeyB: '左食指',
+            KeyY: '右食指', KeyH: '右食指', KeyN: '右食指', KeyU: '右食指', KeyJ: '右食指', KeyM: '右食指',
+            KeyI: '右中指', KeyK: '右中指', KeyO: '右無名指', KeyL: '右無名指', KeyP: '右小指',
+            BracketLeft: '右小指', BracketRight: '右小指', Backslash: '右小指', Semicolon: '右小指', Quote: '右小指', Comma: '右中指', Period: '右無名指', Slash: '右小指',
+            Tab: '左小指', CapsLock: '左小指', ShiftLeft: '左小指', ControlLeft: '左小指',
+            Enter: '右小指', Backspace: '右小指', ShiftRight: '右小指', ControlRight: '右小指',
+            Space: '雙手拇指', AltLeft: '左拇指', AltRight: '右拇指', MetaLeft: '左拇指', MetaRight: '右拇指',
+            NumLock: '右小指', NumpadDivide: '右小指', NumpadMultiply: '右小指', NumpadSubtract: '右小指', NumpadAdd: '右小指', NumpadEnter: '右小指',
+            Numpad7: '右食指', Numpad4: '右食指', Numpad1: '右食指', Numpad8: '右中指', Numpad5: '右中指', Numpad2: '右中指', Numpad9: '右無名指', Numpad6: '右無名指', Numpad3: '右無名指', Numpad0: '右拇指', NumpadDecimal: '右拇指'
+        };
+
+        const fingerForCode = (code) => FINGER_BY_CODE[code] || '';
+
+        // 每張圖片都以同一個左手／右手基準位置製作，只切換目前需要使用的手指高亮圖。
+        const FINGER_IMAGE_BY_NAME = {
+            '左拇指': 'typing-hand-left-thumb.png',
+            '左食指': 'typing-hand-left-index.png',
+            '左中指': 'typing-hand-left-middle.png',
+            '左無名指': 'typing-hand-left-ring.png',
+            '左小指': 'typing-hand-left-pinky.png',
+            '右拇指': 'typing-hand-right-thumb.png',
+            '右食指': 'typing-hand-right-index.png',
+            '右中指': 'typing-hand-right-middle.png',
+            '右無名指': 'typing-hand-right-ring.png',
+            '右小指': 'typing-hand-right-pinky.png'
+        };
+
+        const GameMode = {
+            CASE: '大小寫特訓',
+            SYMBOLS: '符號大師',
+            NUMPAD: '數字鍵盤',
+            MIXED: '綜合挑戰' // 新增模式
+        };
+
+        /* 題庫由 Google Apps Script 的「題庫」分頁提供。 */
+        // 題庫內容不會嵌入前端；所有題目由伺服器工作階段提供。
+
+        // 輔助函式：根據字元尋找對應的按鍵 Code
+        const findKeyForChar = (char) => {
+            if (char === ' ') return { code: 'Space', shift: false };
+            if (char === '\n') return { code: 'Enter', shift: false };
+            
+			// 字母處理 (不分大小寫的基礎 Code)
+            if (/[a-zA-Z]/.test(char)) {
+                const code = `Key${char.toUpperCase()}`;
+                const shift = char === char.toUpperCase();
+                return { code, shift };
+            }
+			
+            // 搜尋主鍵盤
+            for (const row of KEYBOARD_LAYOUT.main) {
+                for (const key of row) {
+                    if (key.label === char) return { code: key.code, shift: false };
+                    if (key.labelShift === char) return { code: key.code, shift: true };
+                }
+            }
+            
+            return null;
+        };
+
+        const apiRequest = async (payload) => {
+            if (!GOOGLE_SCRIPT_URL) throw new Error('尚未設定 Google Apps Script 網址');
+            let response;
+            try {
+                response = await fetch(GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(payload)
+                });
+            } catch (error) {
+                throw new Error('網路錯誤：無法連線到 Google Apps Script');
+            }
+            if (!response.ok) throw new Error(`網路錯誤：API 回應 ${response.status}`);
+            let data;
+            try {
+                data = await response.json();
+            } catch (error) {
+                throw new Error('網路錯誤：API 回應不是有效的 JSON');
+            }
+            if (!data.ok) throw new Error(data.error || '伺服器拒絕要求');
+            return data;
+        };
+
+        const Key = ({ code, label, labelShift, width, height, isPressed, isTarget, isWrong, showShiftLabel, showFingerGuide, isFingerTarget }) => {
+            const baseClasses = "relative flex flex-col items-center justify-center m-0.5 rounded transition-all duration-75 select-none text-sm font-semibold border-b-4";
+            let colorClasses = "bg-slate-100 border-slate-300 text-slate-700";
+            let transformClasses = "active:border-b-0 active:translate-y-1";
+            if (isPressed) {
+                colorClasses = "bg-blue-500 border-blue-700 text-white shadow-inner";
+                transformClasses = "border-b-0 translate-y-1";
+            } else if (isWrong) {
+                colorClasses = "bg-red-500 border-red-700 text-white";
+                transformClasses = "border-b-0 translate-y-1";
+            } else if (isTarget) {
+                colorClasses = "bg-white border-blue-400 text-blue-600 ring-2 ring-blue-400 ring-offset-1 animate-pulse";
+            }
+            const finalWidth = width || "w-10";
+            const finalHeight = height || "h-10";
+            return (
+                <div className={`${baseClasses} ${colorClasses} ${transformClasses} ${finalWidth} ${finalHeight}`}>
+                    {labelShift && <span className={`text-[10px] absolute top-1 ${showShiftLabel ? 'text-blue-600 font-bold' : 'text-slate-400'}`}>{labelShift}</span>}
+                    <span className={labelShift ? "mt-3" : ""}>{label}</span>
+                </div>
+            );
+        };
+
+        const FingerGuide = ({ targetCode }) => {
+            const targetFinger = fingerForCode(targetCode);
+            if (!targetFinger) return null;
+
+            const imageName = FINGER_IMAGE_BY_NAME[targetFinger];
+            const isLeft = targetFinger.startsWith('左');
+            const isRight = targetFinger.startsWith('右');
+            const isThumbs = targetFinger === '雙手拇指';
+
+            return (
+                <div className="pointer-events-none absolute -inset-x-2 top-1 z-30 h-[440px] overflow-visible" aria-hidden="true">
+                    <div className="absolute inset-0 h-full w-full opacity-55" style={{ transform: 'translate(20px, 8px) scale(0.9)', transformOrigin: 'center center' }}>
+                        <img
+                            src={isLeft && imageName ? imageName : (isThumbs ? FINGER_IMAGE_BY_NAME['左拇指'] : 'typing-hand-left.png')}
+                            alt="" aria-hidden="true"
+                            className="absolute left-0 top-0 h-full w-1/2 object-fill"
+                            style={{ transform: 'translateX(-48px)' }}
+                        />
+                        <img
+                            src={isRight && imageName ? imageName : (isThumbs ? FINGER_IMAGE_BY_NAME['右拇指'] : 'typing-hand-right.png')}
+                            alt="" aria-hidden="true"
+                            className="absolute right-0 top-0 h-full w-1/2 object-fill"
+                            style={{ transform: 'translate(-76px, 52px)' }}
+                        />
+                    </div>
+                </div>
+            );
+        };
+
+        const ScoreSubmitModal = ({ isOpen, onClose, mode, onSubmit }) => {
+            const [formData, setFormData] = useState(() => {
+                try { return JSON.parse(localStorage.getItem('keyboardPracticeStudent')) || { studentClass: '', studentNumber: '', studentName: '' }; }
+                catch (error) { return { studentClass: '', studentNumber: '', studentName: '' }; }
+            });
+            const [status, setStatus] = useState('idle');
+            const [errorMessage, setErrorMessage] = useState('');
+
+            useEffect(() => {
+                if (isOpen) {
+                    setStatus('idle');
+                    setErrorMessage('');
+                    try {
+                        const saved = JSON.parse(localStorage.getItem('keyboardPracticeStudent'));
+                        if (saved) setFormData(saved);
+                    } catch (error) { /* ignore malformed local data */ }
+                }
+            }, [isOpen]);
+
+            if (!isOpen) return null;
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                setStatus('submitting');
+                try {
+                    localStorage.setItem('keyboardPracticeStudent', JSON.stringify(formData));
+                    await onSubmit(formData);
+                    setStatus('success');
+                    setTimeout(() => onClose(), 1200);
+                } catch (error) {
+                    console.error(error);
+                    setStatus('error');
+                    setErrorMessage(error.message || '未知錯誤');
+                }
+            };
+
+            return (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl transform transition-all">
+                        <h2 className="text-2xl font-bold mb-4 flex items-center gap-2"><UploadCloud className="text-blue-600" />上傳成績單</h2>
+                        {status === 'success' ? (
+                            <div className="text-center py-8"><CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" /><p className="text-xl font-bold text-green-600">上傳成功！</p></div>
+                        ) : (
+                            <form onSubmit={handleSubmit} className="space-y-4">
+                                <div className="bg-slate-100 p-4 rounded-lg mb-4 space-y-2">
+                                    <div className="flex justify-between mb-2"><span className="text-slate-500">練習項目</span><span className="font-bold">{mode}</span></div>
+                                    <div className="text-sm text-slate-500">成績將由伺服器依練習工作階段重新驗證。</div>
+                                </div>
+                                <div><label className="block text-sm font-medium text-slate-700 mb-1">班級</label><input required type="text" placeholder="例如: 301" className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={formData.studentClass} onChange={e => setFormData({...formData, studentClass: e.target.value})} /></div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div><label className="block text-sm font-medium text-slate-700 mb-1">座號</label><input required type="number" placeholder="例如: 05" className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={formData.studentNumber} onChange={e => setFormData({...formData, studentNumber: e.target.value})} /></div>
+                                    <div><label className="block text-sm font-medium text-slate-700 mb-1">姓名</label><input required type="text" placeholder="輸入姓名" className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={formData.studentName} onChange={e => setFormData({...formData, studentName: e.target.value})} /></div>
+                                </div>
+                                {status === 'error' && <p className="text-red-500 text-sm text-center">{errorMessage}</p>}
+                                <div className="flex gap-3 mt-6">
+                                    <button type="button" onClick={onClose} className="flex-1 py-2 text-slate-500 hover:bg-slate-100 rounded-lg">取消</button>
+                                    <button disabled={status === 'submitting'} type="submit" className="flex-1 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex justify-center items-center gap-2">{status === 'submitting' ? <Loader className="animate-spin" /> : '送出成績'}</button>
+                                </div>
+                            </form>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const LeaderboardModal = ({ isOpen, onClose }) => {
+            const [questions, setQuestions] = useState([]);
+            const [selectedQuestionId, setSelectedQuestionId] = useState(null);
+            const [entries, setEntries] = useState([]);
+            const [loading, setLoading] = useState(false);
+            const [error, setError] = useState('');
+            const [uniqueStudents, setUniqueStudents] = useState(false);
+
+            useEffect(() => {
+                if (!isOpen) return;
+                setLoading(true);
+                setError('');
+                setEntries([]);
+                setSelectedQuestionId(null);
+                setUniqueStudents(false);
+                apiRequest({ action: 'questions' })
+                    .then(data => setQuestions(data.questions || []))
+                    .catch(err => setError(err.message || '題目清單讀取失敗'))
+                    .finally(() => setLoading(false));
+            }, [isOpen]);
+
+            const loadLeaderboard = (questionId, uniqueMode = uniqueStudents) => {
+                setSelectedQuestionId(questionId);
+                setLoading(true);
+                setError('');
+                apiRequest({ action: 'leaderboard', questionId, uniqueStudents: uniqueMode })
+                    .then(data => setEntries(data.entries || []))
+                    .catch(err => setError(err.message || '排行榜讀取失敗'))
+                    .finally(() => setLoading(false));
+            };
+
+            if (!isOpen) return null;
+            return (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl p-6 max-w-4xl w-full shadow-2xl">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-2xl font-bold flex items-center gap-2"><Trophy className="text-yellow-500" />綜合挑戰排行榜</h2>
+                            <button onClick={onClose} className="text-slate-500 hover:text-slate-900 text-2xl">×</button>
+                        </div>
+                        {loading && !questions.length && <p className="text-center text-slate-500 py-4">讀取題目中...</p>}
+                        {error && <p className="text-center text-red-500 py-4">{error}</p>}
+                        {!error && <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-5">
+                            {Array.from({ length: 10 }, (_, index) => {
+                                const question = questions[index];
+                                return <button key={index} disabled={!question} onClick={() => question && loadLeaderboard(question.id)} className={`rounded-lg p-3 text-sm font-bold border ${selectedQuestionId === question?.id ? 'bg-blue-600 text-white border-blue-600' : question ? 'bg-white text-slate-700 hover:bg-blue-50 border-slate-300' : 'bg-slate-100 text-slate-400 border-slate-200'}`}>{question ? question.label : `第 ${index + 1} 題（未設定）`}</button>;
+                            })}
+                        </div>}
+                        {!error && questions.length > 0 && <div className="flex justify-center gap-2 mb-5">
+                            <button onClick={() => {
+                                setUniqueStudents(false);
+                                if (selectedQuestionId) loadLeaderboard(selectedQuestionId, false);
+                            }} className={`px-4 py-2 rounded-lg font-bold border transition ${!uniqueStudents ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-blue-50'}`}>
+                                顯示全部成績
+                            </button>
+                            <button onClick={() => {
+                                setUniqueStudents(true);
+                                if (selectedQuestionId) loadLeaderboard(selectedQuestionId, true);
+                            }} className={`px-4 py-2 rounded-lg font-bold border transition ${uniqueStudents ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-blue-50'}`}>
+                                每人一筆
+                            </button>
+                        </div>}
+                        {loading && questions.length > 0 && <p className="text-center text-slate-500 py-4">讀取排行榜中...</p>}
+                        {!loading && !error && selectedQuestionId && <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead><tr className="bg-slate-100 text-slate-600"><th className="p-3">名次</th><th className="p-3">班級/座號</th><th className="p-3">姓名</th><th className="p-3">答對/總字元</th><th className="p-3 text-right">花費秒數</th><th className="p-3 text-right">總秒數</th><th className="p-3">挑戰時間</th></tr></thead>
+                                <tbody>{entries.map((entry, index) => <tr key={`${entry.studentClass}-${entry.studentNumber}-${entry.studentName}-${index}`} className="border-b"><td className="p-3 font-bold">{index + 1}</td><td className="p-3">{entry.studentClass} / {entry.studentNumber}</td><td className="p-3">{entry.studentName}</td><td className="p-3">{entry.score}</td><td className="p-3 text-right">{entry.durationSeconds}</td><td className="p-3 text-right font-bold text-blue-600">{entry.totalSeconds}</td><td className="p-3 whitespace-nowrap">{entry.challengeTime || '—'}</td></tr>)}</tbody>
+                            </table>
+                            {!entries.length && <p className="text-center text-slate-500 py-8">目前還沒有這一題的已驗證成績。</p>}
+                        </div>}
+                        {!loading && !error && !selectedQuestionId && questions.length > 0 && <p className="text-center text-slate-500 py-4">請選擇題目查看排行榜。</p>}
+                    </div>
+                </div>
+            );
+        };
+
+        const MixedQuestionModal = ({ isOpen, questions, loading, error, onClose, onSelect }) => {
+            if (!isOpen) return null;
+            return (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl p-6 max-w-3xl w-full shadow-2xl">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-2xl font-bold flex items-center gap-2"><BookOpen className="text-amber-500" />選擇綜合挑戰題目</h2>
+                            <button onClick={onClose} className="text-slate-500 hover:text-slate-900 text-2xl">×</button>
+                        </div>
+                        {loading && <p className="text-center text-slate-500 py-8">讀取題目中...</p>}
+                        {error && <p className="text-center text-red-500 py-8">{error}</p>}
+                        {!loading && !error && <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                            {Array.from({ length: 10 }, (_, index) => {
+                                const question = questions[index];
+                                return <button key={index} disabled={!question} onClick={() => question && onSelect(question.id)} className={`min-h-24 rounded-xl p-3 text-left border ${question ? 'bg-white hover:bg-amber-50 hover:border-amber-500 border-slate-300' : 'bg-slate-100 text-slate-400 border-slate-200'}`}><span className="block font-bold">{question ? question.label : `第 ${index + 1} 題`}</span><span className="block mt-2 text-xs line-clamp-3">{question ? question.preview : '未設定'}</span></button>;
+                            })}
+                        </div>}
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [currentMode, setCurrentMode] = useState(null);
+            
+            // 基礎模式變數
+            const [targetChar, setTargetChar] = useState('');
+            const [targetCode, setTargetCode] = useState(null);
+            const [targetHelperKeys, setTargetHelperKeys] = useState([]);
+            
+            // 綜合模式變數
+            const [mixedText, setMixedText] = useState('');
+            const [mixedIndex, setMixedIndex] = useState(0);
+            const [currentQuestionId, setCurrentQuestionId] = useState(null);
+            const [isScoreSubmitted, setIsScoreSubmitted] = useState(false);
+            const [sessionId, setSessionId] = useState(null);
+            const [serverError, setServerError] = useState('');
+            const eventBusyRef = useRef(false);
+            const targetsRef = useRef([]);
+            const eventQueueRef = useRef([]);
+            const flushPromiseRef = useRef(null);
+            const flushTimerRef = useRef(null);
+            const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
+            const [isMixedQuestionOpen, setIsMixedQuestionOpen] = useState(false);
+            const [mixedQuestions, setMixedQuestions] = useState([]);
+            const [mixedQuestionLoading, setMixedQuestionLoading] = useState(false);
+            const [mixedQuestionError, setMixedQuestionError] = useState('');
+            const [mixedQuestionsLoaded, setMixedQuestionsLoaded] = useState(false);
+
+            // 計時相關變數
+            const [startTime, setStartTime] = useState(null);
+            const [endTime, setEndTime] = useState(null);
+            const [finalDuration, setFinalDuration] = useState('');
+            const [timeElapsed, setTimeElapsed] = useState(0); // 新增：即時秒數
+            const isStartedRef = useRef(false); // 新增：用於判斷是否已經開始計時
+
+            const [feedback, setFeedback] = useState(null);
+            const [score, setScore] = useState(0);
+            const [wrongCount, setWrongCount] = useState(0);
+            const [completedCount, setCompletedCount] = useState(0); // 新增：記錄完成字數 (用作分母)
+            const [message, setMessage] = useState('');
+            const [pressedKeys, setPressedKeys] = useState(new Set());
+            const [wrongKey, setWrongKey] = useState(null);
+            const [capsLockOn, setCapsLockOn] = useState(false);
+            const [numLockOn, setNumLockOn] = useState(false);
+            const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
+            const [showFingerGuide, setShowFingerGuide] = useState(() => {
+                try {
+                    const saved = localStorage.getItem('keyboardPracticeFingerGuide');
+                    return saved === null ? true : saved === 'true';
+                } catch (error) {
+                    return true;
+                }
+            });
+            
+            // 新增：追蹤當前字元是否已經扣過分
+            const [hasDeducted, setHasDeducted] = useState(false);
+            const [errorIndices, setErrorIndices] = useState(new Set()); // 新增：記錄錯誤字元的索引
+
+            useEffect(() => {
+                setMixedQuestionLoading(true);
+                apiRequest({ action: 'questions' })
+                    .then(data => setMixedQuestions(data.questions || []))
+                    .catch(error => setMixedQuestionError(error.message || '題目清單讀取失敗'))
+                    .finally(() => { setMixedQuestionsLoaded(true); setMixedQuestionLoading(false); });
+            }, []);
+
+            useEffect(() => {
+                try { localStorage.setItem('keyboardPracticeFingerGuide', String(showFingerGuide)); }
+                catch (error) { /* ignore storage restrictions */ }
+            }, [showFingerGuide]);
+
+            // 基礎題庫
+            const caseTargets = 'AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz';
+            // 更新符號題庫，加入 Python 常用符號，並加入 shift: boolean 屬性
+            const symbolTargets = [
+                { char: '!', code: 'Digit1', hint: 'Shift + 1', shift: true },
+                { char: '@', code: 'Digit2', hint: 'Shift + 2', shift: true },
+                { char: '#', code: 'Digit3', hint: 'Shift + 3', shift: true },
+                { char: '$', code: 'Digit4', hint: 'Shift + 4', shift: true },
+                { char: '%', code: 'Digit5', hint: 'Shift + 5', shift: true },
+                { char: '^', code: 'Digit6', hint: 'Shift + 6', shift: true },
+                { char: '&', code: 'Digit7', hint: 'Shift + 7', shift: true },
+                { char: '*', code: 'Digit8', hint: 'Shift + 8', shift: true },
+                { char: '(', code: 'Digit9', hint: 'Shift + 9', shift: true },
+                { char: ')', code: 'Digit0', hint: 'Shift + 0', shift: true },
+                // Python 常用符號
+                { char: '_', code: 'Minus', hint: 'Shift + -', shift: true },
+                { char: '+', code: 'Equal', hint: 'Shift + =', shift: true },
+                { char: '{', code: 'BracketLeft', hint: 'Shift + [', shift: true },
+                { char: '}', code: 'BracketRight', hint: 'Shift + ]', shift: true },
+                { char: '[', code: 'BracketLeft', hint: '[', shift: false },
+                { char: ']', code: 'BracketRight', hint: ']', shift: false },
+                { char: ':', code: 'Semicolon', hint: 'Shift + ;', shift: true },
+                { char: ';', code: 'Semicolon', hint: ';', shift: false },
+                { char: '"', code: 'Quote', hint: 'Shift + \'', shift: true },
+                { char: "'", code: 'Quote', hint: '\'', shift: false },
+                { char: '<', code: 'Comma', hint: 'Shift + ,', shift: true },
+                { char: '>', code: 'Period', hint: 'Shift + .', shift: true },
+                { char: '=', code: 'Equal', hint: '=', shift: false },
+                { char: ',', code: 'Comma', hint: ',', shift: false },
+                { char: '.', code: 'Period', hint: '.', shift: false },
+            ];
+
+            const shuffleLocal = (items) => {
+                const result = [...items];
+                for (let index = result.length - 1; index > 0; index -= 1) {
+                    const randomIndex = Math.floor(Math.random() * (index + 1));
+                    [result[index], result[randomIndex]] = [result[randomIndex], result[index]];
+                }
+                return result;
+            };
+
+            const createLocalTargets = (modeKey) => {
+                if (modeKey === 'CASE') {
+                    return shuffleLocal(caseTargets.split('')).map(char => ({
+                        char,
+                        code: `Key${char.toUpperCase()}`,
+                        shift: char === char.toUpperCase(),
+                        message: char === char.toUpperCase() ? '請輸入大寫' : '請輸入小寫'
+                    }));
+                }
+                if (modeKey === 'SYMBOLS') {
+                    return shuffleLocal(symbolTargets).map(target => ({
+                        char: target.char,
+                        code: target.code,
+                        shift: target.shift,
+                        message: `請輸入 ${target.char}`
+                    }));
+                }
+                if (modeKey === 'NUMPAD') {
+                    return shuffleLocal('0123456789'.split('')).map(char => ({
+                        char,
+                        code: `Numpad${char}`,
+                        numLock: true,
+                        message: `請用數字鍵盤輸入 ${char}`
+                    }));
+                }
+                return [];
+            };
+
+            // 更新目標按鍵提示 (綜合模式專用)
+            const updateMixedTarget = useCallback((char) => {
+                const keyInfo = findKeyForChar(char);
+                if (keyInfo) {
+                    setTargetCode(keyInfo.code);
+                    if (keyInfo.shift) setTargetHelperKeys(['ShiftLeft', 'ShiftRight']);
+                    else setTargetHelperKeys([]);
+                } else {
+                    setTargetCode(null);
+                    setTargetHelperKeys([]);
+                }
+            }, []);
+
+            const generateTarget = useCallback((mode) => {
+                setFeedback(null);
+                setWrongKey(null);
+                setMessage('');
+                setHasDeducted(false); // 重置扣分狀態
+                
+                if (mode === '大小寫特訓') {
+                    const char = caseTargets[Math.floor(Math.random() * caseTargets.length)];
+                    setTargetChar(char);
+                    setTargetCode(`Key${char.toUpperCase()}`);
+                    if (char === char.toUpperCase()) {
+                        setMessage("請輸入大寫");
+                        setTargetHelperKeys(['ShiftLeft', 'ShiftRight']);
+                    } else {
+                        setMessage("請輸入小寫");
+                        setTargetHelperKeys([]);
+                    }
+                } else if (mode === '符號大師') {
+                    const target = symbolTargets[Math.floor(Math.random() * symbolTargets.length)];
+                    setTargetChar(target.char);
+                    setTargetCode(target.code);
+                    // 根據 shift 屬性決定是否提示 Shift 鍵
+                    if (target.shift) {
+                        setTargetHelperKeys(['ShiftLeft', 'ShiftRight']);
+                    } else {
+                        setTargetHelperKeys([]);
+                    }
+                    setMessage(`請輸入 ${target.char}`);
+                } else if (mode === '數字鍵盤') {
+                    const num = Math.floor(Math.random() * 10);
+                    setTargetChar(num.toString());
+                    setTargetCode(`Numpad${num}`);
+                    setTargetHelperKeys(['NumLock']);
+                    setMessage(`請用數字鍵盤輸入 ${num}`);
+                }
+            }, []);
+
+            const setServerTarget = (target) => {
+                // 題目切換或剛開始練習時，不應沿用上一題的正確提示圖示。
+                setFeedback(null);
+                if (!target) {
+                    setTargetChar('');
+                    setTargetCode(null);
+                    setTargetHelperKeys([]);
+                    return;
+                }
+                setTargetChar(target.char || '');
+                setTargetCode(target.code || null);
+                setTargetHelperKeys(target.shift ? ['ShiftLeft', 'ShiftRight'] : (target.numLock ? ['NumLock'] : []));
+                setMessage(target.message || `請輸入 ${target.char}`);
+            };
+
+            const flushEvents = useCallback(async () => {
+                if (!sessionId || !eventQueueRef.current.length) return;
+                if (flushPromiseRef.current) return flushPromiseRef.current;
+                const events = eventQueueRef.current.splice(0);
+                flushPromiseRef.current = apiRequest({ action: 'events', sessionId, events })
+                    .then(data => {
+                        setScore(data.score || 0);
+                        // 批次上傳期間使用者可能已繼續輸入，避免較早回傳的資料覆蓋目前畫面數值。
+                        setCompletedCount(prev => Math.max(prev, Number(data.completed) || 0));
+                        setWrongCount(prev => Math.max(prev, Number(data.wrongEvents) || 0));
+                    })
+                    .catch(error => {
+                        eventQueueRef.current.unshift(...events);
+                        setServerError(error.message || '練習事件上傳失敗');
+                        throw error;
+                    })
+                    .finally(() => { flushPromiseRef.current = null; });
+                return flushPromiseRef.current;
+            }, [sessionId]);
+
+            const queueEvent = (event) => {
+                eventQueueRef.current.push(event);
+                if (!flushTimerRef.current) {
+                    flushTimerRef.current = setTimeout(() => {
+                        flushTimerRef.current = null;
+                        flushEvents().catch(() => {});
+                    }, 250);
+                }
+            };
+
+            const openMixedSelection = async () => {
+                setMixedQuestionError('');
+                setIsMixedQuestionOpen(true);
+                if (!mixedQuestionsLoaded) {
+                    setMixedQuestionLoading(true);
+                    try {
+                        const data = await apiRequest({ action: 'questions' });
+                        setMixedQuestions(data.questions || []);
+                    } catch (error) {
+                        setMixedQuestionError(error.message || '題目清單讀取失敗');
+                    } finally {
+                        setMixedQuestionsLoaded(true);
+                        setMixedQuestionLoading(false);
+                    }
+                }
+            };
+
+            const startGame = async (modeKey, questionId) => {
+                const modeName = GameMode[modeKey];
+                setServerError('');
+                setScore(0);
+                setWrongCount(0);
+                setCompletedCount(0);
+                setFeedback(null);
+                setErrorIndices(new Set());
+                setEndTime(null);
+                setFinalDuration('');
+                setTimeElapsed(0);
+                setSessionId(null);
+                setCurrentQuestionId(null);
+                setIsScoreSubmitted(false);
+
+                if (modeKey !== 'MIXED') {
+                    const localTargets = createLocalTargets(modeKey);
+                    if (!localTargets.length) {
+                        setServerError('無法建立練習題目');
+                        return;
+                    }
+                    setStartTime(null);
+                    isStartedRef.current = false;
+                    setMixedText('');
+                    setMixedIndex(0);
+                    targetsRef.current = localTargets;
+                    eventQueueRef.current = [];
+                    setServerTarget(localTargets[0]);
+                    setCurrentMode(modeName);
+                    setIsMixedQuestionOpen(false);
+                    setMessage(localTargets[0].message || '請開始練習');
+                    return;
+                }
+
+                try {
+                    const data = await apiRequest({ action: 'start', mode: modeKey, questionId });
+                    setSessionId(data.sessionId);
+                    setCurrentQuestionId(modeKey === 'MIXED' ? (data.questionId || questionId || null) : null);
+                    setStartTime(null);
+                    isStartedRef.current = false;
+                    setMixedText(data.text || '');
+                    setMixedIndex(0);
+                    targetsRef.current = data.targets || (data.target ? [data.target] : []);
+                    eventQueueRef.current = [];
+                    setServerTarget(data.target);
+                    setCurrentMode(modeName);
+                    setIsMixedQuestionOpen(false);
+                    setMessage(modeKey === 'MIXED' ? '請依序輸入文章內容' : (data.target?.message || '請開始練習'));
+                    if (data.total) setCompletedCount(0);
+                    return;
+                } catch (error) {
+                    setServerError(error.message || '無法連線到練習伺服器');
+                    return;
+                }
+            };
+
+            const returnToMenu = () => {
+                setCurrentMode(null);
+                setFeedback(null);
+                setWrongCount(0);
+                setTargetChar('');
+                setMixedText('');
+                setCurrentQuestionId(null);
+                setIsScoreSubmitted(false);
+                setSessionId(null);
+                targetsRef.current = [];
+                eventQueueRef.current = [];
+                setServerError('');
+                setFeedback(null);
+                setPressedKeys(new Set());
+                setErrorIndices(new Set());
+            };
+
+            // 新增：處理即時時間的 Effect
+            useEffect(() => {
+                let interval;
+                if (currentMode && startTime && !endTime) {
+                    interval = setInterval(() => {
+                        setTimeElapsed(Math.floor((Date.now() - startTime) / 1000));
+                    }, 1000);
+                } else if (!currentMode) {
+                    setTimeElapsed(0);
+                }
+                return () => clearInterval(interval);
+            }, [currentMode, startTime, endTime]);
+
+            // 輔助：時間格式化
+            const formatTime = (seconds) => {
+                const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+                const s = (seconds % 60).toString().padStart(2, '0');
+                return `${m}:${s}`;
+            };
+
+            const handleOpenSubmitModal = () => {
+                if (currentMode !== '綜合挑戰' || !endTime || isScoreSubmitted) return;
+                if (!startTime) {
+                    setFinalDuration("0分0秒");
+                    setIsSubmitModalOpen(true);
+                    return;
+                }
+                
+                // 如果是混合模式且已完成 (endTime 有值)，使用 endTime
+                // 否則使用當前時間 (適用於還沒打完或無限練習模式)
+                const end = endTime || Date.now();
+                const diff = end - startTime;
+                
+                const seconds = Math.floor(diff / 1000);
+                const m = Math.floor(seconds / 60);
+                const s = seconds % 60;
+                setFinalDuration(`${m}分${s}秒`);
+                
+                setIsSubmitModalOpen(true);
+            };
+
+            const submitScore = async (student) => {
+                if (!sessionId) throw new Error('沒有有效的練習工作階段');
+                if (currentMode !== '綜合挑戰') throw new Error('只有綜合挑戰可以記錄成績');
+                if (flushTimerRef.current) {
+                    clearTimeout(flushTimerRef.current);
+                    flushTimerRef.current = null;
+                }
+                while (eventQueueRef.current.length || flushPromiseRef.current) {
+                    if (flushPromiseRef.current) await flushPromiseRef.current;
+                    if (eventQueueRef.current.length) await flushEvents();
+                }
+                const result = await apiRequest({
+                    action: 'submit',
+                    sessionId,
+                    student
+                });
+                setIsScoreSubmitted(true);
+                setMessage(`成績已送出：${result.score} / ${result.total}`);
+                return result;
+            };
+
+            useEffect(() => {
+                const handleKeyDown = (e) => {
+                    if (isSubmitModalOpen) return;
+
+                    if (e.getModifierState) {
+                        setCapsLockOn(e.getModifierState("CapsLock"));
+                        setNumLockOn(e.getModifierState("NumLock"));
+                    }
+                    setPressedKeys(prev => { const newSet = new Set(prev); newSet.add(e.code); return newSet; });
+                    if (!currentMode) return;
+
+                    const isMixedMode = currentMode === '綜合挑戰';
+                    
+                    // 加強按鍵過濾：同時檢查 code 和 key，確保 Right Shift 被正確忽略
+                    if (['ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight', 'CapsLock', 'NumLock', 'MetaLeft', 'MetaRight', 'ContextMenu'].includes(e.code)) return;
+                    if (['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'NumLock'].includes(e.key)) return;
+                    if (!isMixedMode && (e.code === 'Tab' || e.key === 'Tab')) return;
+                    
+                    e.preventDefault();
+
+                    const inputChar = e.key;
+                    const inputCode = e.code;
+
+                    if (isMixedMode && !sessionId) return;
+                    if (isMixedMode && endTime) return;
+                    const index = mixedIndex;
+                    const target = targetsRef.current[index];
+                    if (!target) return;
+                    // 只有第一個有效輸入才開始計時；Shift、CapsLock 等被忽略的按鍵不會啟動計時。
+                    if (!isStartedRef.current) {
+                        isStartedRef.current = true;
+                        setStartTime(Date.now());
+                    }
+                    const isTabIndent = isMixedMode
+                        && inputCode === 'Tab'
+                        && targetsRef.current.slice(index, index + 4).length === 4
+                        && targetsRef.current.slice(index, index + 4).every(item => item.char === ' ');
+                    const isCorrect = isTabIndent || (currentMode === '數字鍵盤'
+                        ? inputCode === target.code
+                        : (target.char === '\n' ? inputChar === 'Enter' && inputCode === 'Enter' : inputChar === target.char && inputCode === target.code));
+                    if (isMixedMode) queueEvent({ key: inputChar, code: inputCode, timestamp: Date.now() });
+                    setFeedback(isCorrect ? 'correct' : 'wrong');
+                    setWrongKey(isCorrect ? null : inputCode);
+                    if (isCorrect) {
+                        const advanceBy = isTabIndent ? 4 : 1;
+                        setScore(prev => prev + advanceBy);
+                        // 先答錯再補答正確的字元，不列入答對字數。
+                        if (isTabIndent || !hasDeducted) setCompletedCount(prev => prev + advanceBy);
+                        setHasDeducted(false);
+                        const nextIndex = index + advanceBy;
+                        if (nextIndex >= targetsRef.current.length) {
+                            setMixedIndex(nextIndex);
+                            setEndTime(Date.now());
+                            setServerTarget(null);
+                            setMessage(isMixedMode ? '恭喜完成練習！請選擇「結算成績」。' : '恭喜完成練習！');
+                        } else {
+                            setMixedIndex(nextIndex);
+                            setServerTarget(targetsRef.current[nextIndex]);
+                        }
+                    } else if (!hasDeducted) {
+                        setWrongCount(prev => prev + 1);
+                        setScore(prev => prev - 1);
+                        setHasDeducted(true);
+                        if (currentMode === '綜合挑戰') setErrorIndices(prev => new Set(prev).add(index));
+                    }
+                    setTimeout(() => setWrongKey(null), 300);
+
+                };
+
+                const handleKeyUp = (e) => {
+                    setPressedKeys(prev => { const newSet = new Set(prev); newSet.delete(e.code); return newSet; });
+                    if (e.getModifierState) {
+                        setCapsLockOn(e.getModifierState("CapsLock"));
+                        setNumLockOn(e.getModifierState("NumLock"));
+                    }
+                };
+                window.addEventListener('keydown', handleKeyDown);
+                window.addEventListener('keyup', handleKeyUp);
+                return () => { window.removeEventListener('keydown', handleKeyDown); window.removeEventListener('keyup', handleKeyUp); };
+            }, [currentMode, targetChar, targetCode, generateTarget, isSubmitModalOpen, mixedText, mixedIndex, updateMixedTarget, hasDeducted, sessionId, flushEvents, endTime]);
+
+            const renderMainKeyboard = () => (
+                <div className="bg-slate-800 p-2 rounded-xl shadow-2xl inline-block mr-2">
+                    {KEYBOARD_LAYOUT.main.map((row, rowIndex) => (
+                        <div key={rowIndex} className="flex justify-center mb-1">
+                            {row.map((key) => <Key key={key.code} {...key} isPressed={pressedKeys.has(key.code)} isTarget={targetCode === key.code || targetHelperKeys.includes(key.code)} isWrong={wrongKey === key.code} showShiftLabel={pressedKeys.has('ShiftLeft') || pressedKeys.has('ShiftRight')} showFingerGuide={showFingerGuide} isFingerTarget={targetCode === key.code || targetHelperKeys.includes(key.code)} />)}
+                        </div>
+                    ))}
+                </div>
+            );
+
+            const renderNumpad = () => (
+                <div className="bg-slate-800 p-2 rounded-xl shadow-2xl inline-block h-full align-top">
+                    <div className="grid grid-cols-4 gap-0.5" style={{ width: '170px' }}>
+                        {KEYBOARD_LAYOUT.numpad.flat().map(key => {
+                            let gridClass = ""; if (key.width === 'col-span-2') gridClass += " col-span-2 w-full"; if (key.height === 'row-span-2') gridClass += " row-span-2 h-full";
+                            return (<div key={key.code} className={`${key.width || ''} ${key.height || ''} flex justify-center`}><Key {...key} width={key.width === 'col-span-2' ? "w-full" : "w-10"} height={key.height === 'row-span-2' ? "h-[84px]" : "h-10"} isPressed={pressedKeys.has(key.code)} isTarget={targetCode === key.code || (key.code === 'NumLock' && !numLockOn && currentMode === '數字鍵盤')} isWrong={wrongKey === key.code} showFingerGuide={showFingerGuide} isFingerTarget={targetCode === key.code || (key.code === 'NumLock' && !numLockOn && currentMode === '數字鍵盤')} /></div>);
+                        })}
+                    </div>
+                </div>
+            );
+
+            const MenuCard = ({ title, icon, desc, onClick, color }) => (
+                <button onClick={onClick} className={`flex flex-col items-center p-8 rounded-xl border-2 border-slate-200 bg-white transition-all hover:-translate-y-2 hover:shadow-xl ${color} group`}>
+                    <div className="mb-6 transform transition-transform group-hover:scale-110">{icon}</div>
+                    <h3 className="text-2xl font-bold text-slate-800 mb-3">{title}</h3>
+                    <p className="text-slate-500 text-center">{desc}</p>
+                </button>
+            );
+
+            if (!currentMode) {
+                return (
+                    <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4 font-sans select-none">
+                        <LeaderboardModal isOpen={isLeaderboardOpen} onClose={() => setIsLeaderboardOpen(false)} />
+                        <MixedQuestionModal isOpen={isMixedQuestionOpen} questions={mixedQuestions} loading={mixedQuestionLoading} error={mixedQuestionError} onClose={() => setIsMixedQuestionOpen(false)} onSelect={(questionId) => startGame('MIXED', questionId)} />
+                        <div className="max-w-4xl w-full bg-white rounded-2xl shadow-xl overflow-hidden">
+                            <div className="bg-slate-800 p-10 text-center text-white relative overflow-hidden">
+                                <div className="absolute top-0 left-0 w-full h-full opacity-10"><div className="grid grid-cols-12 gap-2 transform -rotate-12 scale-150">{[...Array(48)].map((_, i) => <div key={i} className="w-8 h-8 bg-white rounded"></div>)}</div></div>
+                                <div className="relative z-10">
+                                    <div className="flex justify-center mb-4"><KeyboardIcon className="w-20 h-20 text-blue-400" /></div>
+                                    <h1 className="text-4xl font-bold mb-2 tracking-wider">鍵盤特訓班</h1>
+                                    <p className="text-slate-400">視覺化互動教學系統</p>
+                                </div>
+                            </div>
+                            <div className="p-10 grid grid-cols-1 md:grid-cols-4 gap-4">
+                                <MenuCard title="大小寫特訓" icon={<ArrowUp className="w-12 h-12 text-blue-500" />} desc="練習 Shift 與 CapsLock" onClick={() => startGame('CASE')} color="hover:bg-blue-50 hover:border-blue-500" />
+                                <MenuCard title="符號大師" icon={<Hash className="w-12 h-12 text-purple-500" />} desc="熟悉 !@#$ 等特殊符號" onClick={() => startGame('SYMBOLS')} color="hover:bg-purple-50 hover:border-purple-500" />
+                                <MenuCard title="數字鍵盤區" icon={<Monitor className="w-12 h-12 text-emerald-500" />} desc="掌握 NumPad 與 NumLock" onClick={() => startGame('NUMPAD')} color="hover:bg-emerald-50 hover:border-emerald-500" />
+                                <MenuCard title="綜合挑戰" icon={<BookOpen className="w-12 h-12 text-amber-500" />} desc="先選擇題目再開始練習" onClick={openMixedSelection} color="hover:bg-amber-50 hover:border-amber-500" />
+                            </div>
+                            <div className="px-10 pb-8 text-center"><button onClick={() => setIsLeaderboardOpen(true)} className="inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-yellow-100 text-yellow-800 font-bold hover:bg-yellow-200"><Trophy className="w-5 h-5" />查看排行榜</button></div>
+                            {serverError && <div className="mx-10 mb-4 rounded-lg bg-red-50 p-3 text-center text-red-600">{serverError}</div>}
+                            <div className="bg-slate-50 p-4 text-center text-slate-500 text-sm border-t">請使用實體鍵盤操作 • 建議使用 Google Chrome 或 Edge 瀏覽器</div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // 計算顯示用的總分 (在綜合模式下固定為文章長度，其他模式為已完成題數)
+            const totalCharCount = currentMode === '綜合挑戰' ? mixedText.length : completedCount;
+
+            return (
+                <div className="min-h-screen bg-slate-200 flex flex-col items-center p-4 select-none">
+                    <ScoreSubmitModal isOpen={isSubmitModalOpen} onClose={() => setIsSubmitModalOpen(false)} mode={currentMode} onSubmit={submitScore} />
+
+                    <div className="w-full max-w-5xl bg-white rounded-xl shadow-sm p-4 mb-6 flex justify-between items-center">
+                        <div className="flex gap-2">
+                             <button onClick={returnToMenu} className="flex items-center gap-2 text-slate-600 hover:text-slate-900 font-bold px-4 py-2 rounded-lg hover:bg-slate-100 transition"><RotateCcw className="w-5 h-5" />放棄</button>
+                             {currentMode === '綜合挑戰' && isScoreSubmitted && endTime && currentQuestionId && <button onClick={() => startGame('MIXED', currentQuestionId)} className="flex items-center gap-2 bg-amber-500 text-white hover:bg-amber-600 font-bold px-4 py-2 rounded-lg transition shadow-md shadow-amber-200"><RotateCcw className="w-5 h-5" />再次挑戰</button>}
+                             {currentMode === '綜合挑戰' && <button disabled={!endTime || isScoreSubmitted} onClick={handleOpenSubmitModal} className={`flex items-center gap-2 font-bold px-4 py-2 rounded-lg transition ${!endTime || isScoreSubmitted ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-200'}`}><Send className="w-4 h-4" /> 結算成績</button>}
+                        </div>
+                        <div className="flex gap-6">
+                            <button type="button" aria-pressed={showFingerGuide} onClick={() => setShowFingerGuide(prev => !prev)} className={`rounded-full px-4 py-1.5 text-sm font-bold transition-all ${showFingerGuide ? 'bg-blue-500 text-white shadow-lg shadow-blue-200' : 'bg-slate-200 text-slate-500'}`}>
+                                手指提示：{showFingerGuide ? '開' : '關'}
+                            </button>
+                            <div className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-bold transition-all ${capsLockOn ? 'bg-green-500 text-white shadow-lg shadow-green-200' : 'bg-slate-200 text-slate-400'}`}><div className={`w-2 h-2 rounded-full ${capsLockOn ? 'bg-white' : 'bg-slate-400'}`} />Caps Lock</div>
+                            <div className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-bold transition-all ${numLockOn ? 'bg-green-500 text-white shadow-lg shadow-green-200' : 'bg-slate-200 text-slate-400'}`}><div className={`w-2 h-2 rounded-full ${numLockOn ? 'bg-white' : 'bg-slate-400'}`} />Num Lock</div>
+                        </div>
+                        <div className="flex items-center gap-6">
+                            <div className="flex items-center gap-2 text-xl font-bold text-slate-600">
+                                <Timer className="w-6 h-6 text-slate-500" />
+                                <span className="font-mono">{formatTime(timeElapsed)}</span>
+                            </div>
+                            <div className="text-xl font-bold text-slate-700 whitespace-nowrap">
+                                答對 {completedCount}
+                            </div>
+                            <div className="text-xl font-bold text-red-600 whitespace-nowrap">
+                                答錯 {wrongCount}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="mb-8 text-center space-y-4 w-full max-w-4xl">
+                        {currentMode === '綜合挑戰' ? (
+                            <div className="bg-white p-8 rounded-2xl shadow-inner min-h-[200px] text-left font-mono text-2xl leading-relaxed whitespace-pre overflow-x-auto">
+                                {mixedText.split('').map((char, index) => {
+                                    if (char === '\n') {
+                                        return (
+                                            <React.Fragment key={index}>
+                                                <span className={`
+                                                    transition-colors duration-100 px-0.5 rounded inline-block
+                                                    ${index === mixedIndex ? 'bg-blue-500 text-white animate-pulse scale-110 shadow-md' : ''}
+                                                    ${index < mixedIndex ? (errorIndices.has(index) ? 'text-red-500 font-medium' : 'text-green-600 opacity-50') : ''}
+                                                    ${index > mixedIndex ? 'text-slate-400' : ''}
+                                                `}>
+                                                    ↵
+                                                </span>
+                                                {'\n'}
+                                            </React.Fragment>
+                                        );
+                                    }
+                                    const isWrongSpace = char === ' ' && errorIndices.has(index);
+                                    return (
+                                        <span key={index} title={isWrongSpace ? '錯誤空白' : undefined} className={`
+                                            transition-colors duration-100 px-0.5 rounded
+                                            ${index === mixedIndex ? 'bg-blue-500 text-white animate-pulse scale-110 inline-block shadow-md' : ''}
+                                            ${index < mixedIndex ? (errorIndices.has(index) ? 'text-red-500 font-medium' : 'text-green-600 opacity-50') : ''}
+                                            ${index > mixedIndex ? 'text-slate-400' : ''}
+                                        `}>
+                                            {isWrongSpace ? '·' : char}
+                                        </span>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div className="text-8xl font-mono font-bold text-slate-800 drop-shadow-sm h-32 flex items-center justify-center relative">{targetChar}{feedback === 'correct' && <div className="absolute left-[60%]"><CheckCircle className="w-12 h-12 text-green-500 animate-bounce" /></div>}{feedback === 'wrong' && <div className="absolute left-[60%]"><XCircle className="w-12 h-12 text-red-500 animate-pulse" /></div>}</div>
+                        )}
+                        <p className={`text-xl font-medium h-8 transition-colors ${feedback === 'wrong' ? 'text-red-500' : 'text-slate-600'}`}>
+                            {currentMode === '大小寫特訓' && targetChar && targetChar === targetChar.toUpperCase()
+                                ? <>請輸入 <span className="text-red-500">大寫</span></>
+                                : message}
+                        </p>
+                        {serverError && <p className="text-sm text-red-600">{serverError}</p>}
+                    </div>
+
+                    <div className="relative flex w-full max-w-full flex-col items-center gap-2 overflow-x-auto p-2">
+                        <div className="flex flex-col items-start justify-center gap-4 xl:flex-row">
+                            <div className="relative">
+                                {showFingerGuide && <FingerGuide targetCode={targetCode} />}
+                                <div className={`relative z-10 transition-opacity duration-500 ${currentMode === '數字鍵盤' ? 'opacity-50 blur-[1px]' : 'opacity-100'}`}>{renderMainKeyboard()}</div>
+                            </div>
+                            <div className={`transition-opacity duration-500 ${currentMode !== '數字鍵盤' && 'opacity-50 blur-[1px]'}`}>{renderNumpad()}</div>
+                        </div>
+                    </div>
+                    <div className="mt-8 text-slate-500 text-sm"><p>提示：畫面上的藍色框框是您應該按下的按鍵</p></div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
