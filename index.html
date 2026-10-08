@@ -91,16 +91,21 @@
 
         // 每張圖片都以同一個左手／右手基準位置製作，只切換目前需要使用的手指高亮圖。
         const FINGER_IMAGE_BY_NAME = {
-            '左拇指': 'typing-hand-left-thumb.png',
-            '左食指': 'typing-hand-left-index.png',
-            '左中指': 'typing-hand-left-middle.png',
-            '左無名指': 'typing-hand-left-ring.png',
-            '左小指': 'typing-hand-left-pinky.png',
-            '右拇指': 'typing-hand-right-thumb.png',
-            '右食指': 'typing-hand-right-index.png',
-            '右中指': 'typing-hand-right-middle.png',
-            '右無名指': 'typing-hand-right-ring.png',
-            '右小指': 'typing-hand-right-pinky.png'
+            '左拇指': { webp: 'typing-hand-left-thumb.webp', png: 'typing-hand-left-thumb.png' },
+            '左食指': { webp: 'typing-hand-left-index.webp', png: 'typing-hand-left-index.png' },
+            '左中指': { webp: 'typing-hand-left-middle.webp', png: 'typing-hand-left-middle.png' },
+            '左無名指': { webp: 'typing-hand-left-ring.webp', png: 'typing-hand-left-ring.png' },
+            '左小指': { webp: 'typing-hand-left-pinky.webp', png: 'typing-hand-left-pinky.png' },
+            '右拇指': { webp: 'typing-hand-right-thumb.webp', png: 'typing-hand-right-thumb.png' },
+            '右食指': { webp: 'typing-hand-right-index.webp', png: 'typing-hand-right-index.png' },
+            '右中指': { webp: 'typing-hand-right-middle.webp', png: 'typing-hand-right-middle.png' },
+            '右無名指': { webp: 'typing-hand-right-ring.webp', png: 'typing-hand-right-ring.png' },
+            '右小指': { webp: 'typing-hand-right-pinky.webp', png: 'typing-hand-right-pinky.png' }
+        };
+
+        const BASE_HAND_IMAGE = {
+            left: { webp: 'typing-hand-left.webp', png: 'typing-hand-left.png' },
+            right: { webp: 'typing-hand-right.webp', png: 'typing-hand-right.png' }
         };
 
         const GameMode = {
@@ -182,6 +187,24 @@
             );
         };
 
+        const HandImage = ({ image, className, style }) => (
+            <picture className={className} style={style}>
+                <source srcSet={image.webp} type="image/webp" />
+                <img
+                    src={image.png}
+                    alt=""
+                    aria-hidden="true"
+                    decoding="async"
+                    className="block h-full w-full object-fill"
+                    onError={(event) => {
+                        if (event.currentTarget.src.endsWith(image.png)) return;
+                        event.currentTarget.onerror = null;
+                        event.currentTarget.src = image.png;
+                    }}
+                />
+            </picture>
+        );
+
         const FingerGuide = ({ targetCode }) => {
             const targetFinger = fingerForCode(targetCode);
             if (!targetFinger) return null;
@@ -190,20 +213,20 @@
             const isLeft = targetFinger.startsWith('左');
             const isRight = targetFinger.startsWith('右');
             const isThumbs = targetFinger === '雙手拇指';
+            const leftImage = isLeft && imageName ? imageName : (isThumbs ? FINGER_IMAGE_BY_NAME['左拇指'] : BASE_HAND_IMAGE.left);
+            const rightImage = isRight && imageName ? imageName : (isThumbs ? FINGER_IMAGE_BY_NAME['右拇指'] : BASE_HAND_IMAGE.right);
 
             return (
                 <div className="pointer-events-none absolute -inset-x-2 top-1 z-30 h-[440px] overflow-visible" aria-hidden="true">
                     <div className="absolute inset-0 h-full w-full opacity-55" style={{ transform: 'translate(20px, 8px) scale(0.9)', transformOrigin: 'center center' }}>
-                        <img
-                            src={isLeft && imageName ? imageName : (isThumbs ? FINGER_IMAGE_BY_NAME['左拇指'] : 'typing-hand-left.png')}
-                            alt="" aria-hidden="true"
-                            className="absolute left-0 top-0 h-full w-1/2 object-fill"
+                        <HandImage
+                            image={leftImage}
+                            className="absolute left-0 top-0 h-full w-1/2"
                             style={{ transform: 'translateX(-48px)' }}
                         />
-                        <img
-                            src={isRight && imageName ? imageName : (isThumbs ? FINGER_IMAGE_BY_NAME['右拇指'] : 'typing-hand-right.png')}
-                            alt="" aria-hidden="true"
-                            className="absolute right-0 top-0 h-full w-1/2 object-fill"
+                        <HandImage
+                            image={rightImage}
+                            className="absolute right-0 top-0 h-full w-1/2"
                             style={{ transform: 'translate(-76px, 52px)' }}
                         />
                     </div>
